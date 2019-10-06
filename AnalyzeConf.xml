@@ -1,0 +1,20 @@
+<args>
+	<train_begin_date>
+		190101
+	</train_begin_date>
+	<train_end_date>
+		190601
+	</train_end_date>
+	<predict_begin_date>
+		190601
+	</predict_begin_date>
+	<predict_end_date>
+		190720
+	</predict_end_date>
+	<predict_file_prefix>
+		z_scored_
+	</predict_file_prefix>
+	<predict_idx_prefix>
+		stock_idx_
+	</predict_idx_prefix>
+</args>
