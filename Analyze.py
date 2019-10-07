@@ -12,7 +12,7 @@ from Kmeans_cDTW_DBA import DBA_iteration
 
 #根据聚类的结果，对未来的进行分类
 conf_file = 'AnalyzeConf.xml'
-clustering_ans_dir = 'cluster_ans/train_ans/'
+clustering_ans_dir = 'cluster_ans/train_ans/{begin}-{end}/'
 predict_dir = 'cluster_data/{begin}-{end}/'
 predict_attr = 'close'
 mem_file = 'mem_{begin}-{end}.csv'
@@ -21,6 +21,7 @@ up_and_down_file = 'up_and_down_{begin}-{end}.csv'
 num_cluster = 0
 mem_dict = {}
 mem_list = []
+mem_index_dict = {}
 train_begin_date = ET.parse(conf_file).getroot()[0].text.strip()
 train_end_date = ET.parse(conf_file).getroot()[1].text.strip()
 predict_begin_date = ET.parse(conf_file).getroot()[2].text.strip()
@@ -316,8 +317,8 @@ def AvgDis(Data):
 def compute_DBI():
     if_predict = 1
     c_Data = []
-    cluster_dir = 'cluster_ans\\for_train\week9_zscored\\'
-    cluster_file = 'wk9_zscored190211-190410.csv'
+    cluster_dir = 'cluster_ans\\for_train\\' + train_begin_date+'-'+train_end_date + '\\'
+    cluster_file = 'z_scored_' + train_begin_date + '-' + train_end_date+'.csv'
     with open(cluster_dir + cluster_file, 'r') as f:
         lines = csv.reader(f)
         for line in lines:
@@ -353,6 +354,8 @@ def compute_DBI():
         cent_pi = 1
         if if_predict:
             cent_pi,_ = DBA_iteration(this_cluster[0], np.array(this_cluster))
+        else:
+            cent_pi = cent[i]
         #print(i,": ",avg_i)
         tmp_max = -1
         for j in range(num_cluster):
@@ -364,10 +367,74 @@ def compute_DBI():
                     this_j_cluster.append(all_Data[stock])
             avg_j = AvgDis(this_j_cluster)
             d_cent = cDTW(cent[i],cent[j])
-
+            cent_pj = 1
             if if_predict:
                 cent_pj,_ = DBA_iteration(this_j_cluster[0],np.array(this_j_cluster))
-                d_cent = cDTW(cent_pi,cent_pj)
+            else:
+                cent_pj = cent[j]
+            d_cent = cDTW(cent_pi,cent_pj)
+
+            if tmp_max < (avg_i+avg_j) / d_cent:
+                tmp_max = (avg_i+avg_j) / d_cent
+        DBI += tmp_max
+    DBI = DBI / num_cluster
+    return DBI
+
+def compute_DBI_obv():
+    '''
+    for clustering ans which has been refined
+    :return: DBI
+    '''
+    mem_file_1 = 'cluster_ans/for_train/' + train_begin_date + '-'+ train_end_date + '/' + 'obvious_mem.csv'
+    data_file_1 = 'cluster_ans/for_train/' + train_begin_date + '-'+ train_end_date + '/' + 'obvious_stock.csv'
+    data_file_predict = 'cluster_data/' + predict_begin_date + '-' + predict_end_date + '/' \
+    + 'z_scored_' +  predict_begin_date + '-' + predict_end_date+'.csv'
+
+    all_Data = []
+    with open(data_file_1, 'r') as f:
+        lines = csv.reader(f)
+        for stock in lines:
+            all_Data.append([float(t) for t in stock])
+    mem = []
+    temp_dic = {}
+    with open(mem_file_1, 'r') as f:
+        mems = csv.reader(f)
+        for line in mems:
+            mem.append(int(line[1]))
+            temp_dic[mem_index_dict[line[0]]] = 1
+    pre_Data = []
+    with open(data_file_predict,'r') as f:
+        pres = csv.reader(f)
+        for ii,line in enumerate(pres):
+            try:
+                a = temp_dic[ii]
+                pre_Data.append([float(t) for t in line])
+            except:
+                continue
+    assert(len(pre_Data)==len(all_Data))
+    global num_cluster
+    DBI = 0
+    for i in tqdm(range(num_cluster)):
+        this_cluster = []
+        for stock,stock_type in enumerate(mem):
+            if stock_type == i:
+                this_cluster.append(pre_Data[stock])   #c_data or all_data
+        avg_i = AvgDis(this_cluster)
+
+        cent_pi,_ = DBA_iteration(this_cluster[0], np.array(this_cluster))
+
+        #print(i,": ",avg_i)
+        tmp_max = -1
+        for j in range(num_cluster):
+            if j == i:
+                continue
+            this_j_cluster = []
+            for stock, stock_type in enumerate(mem):
+                if stock_type == j:
+                    this_j_cluster.append(pre_Data[stock])
+            avg_j = AvgDis(this_j_cluster)
+            cent_pj,_ = DBA_iteration(this_j_cluster[0],np.array(this_j_cluster))
+            d_cent = cDTW(cent_pi,cent_pj)
 
             if tmp_max < (avg_i+avg_j) / d_cent:
                 tmp_max = (avg_i+avg_j) / d_cent
@@ -384,8 +451,8 @@ def extract_shape_simmilar(obv_param,tol_param):
     '''
     Data = []
     stock_idx = []
-    c_dir = 'cluster_ans/for_train/z_scored_{begin}-{end}.csv'.format(begin=train_begin_date,end=train_end_date)
-    idx_dir = 'cluster_ans/for_train/stock_idx_{begin}-{end}.txt'.format(begin=train_begin_date,end=train_end_date)
+    c_dir = 'cluster_ans/for_train/{begin}-{end}/z_scored_{begin}-{end}.csv'.format(begin=train_begin_date,end=train_end_date)
+    idx_dir = 'cluster_ans/for_train/{begin}-{end}/stock_idx_{begin}-{end}.txt'.format(begin=train_begin_date,end=train_end_date)
     obvious_ans_dir = 'cluster_ans/for_train/{begin}-{end}/'.format(begin=train_begin_date,end=train_end_date)
     with open(idx_dir,'r') as f:
         for line in f.readlines():
@@ -457,11 +524,18 @@ def extract_shape_simmilar(obv_param,tol_param):
             if diff_day / count_sum.shape[0] <= tol_param:
                 obvious_stock.append(data_i[seq])
                 obvious_stock_no.append(idx_i[seq])
-        with open(obvious_ans_dir+'obvious_ans_'+str(i)+'.txt','w') as f:
+        with open(obvious_ans_dir+'obvious_ans'+'.txt','a+',newline='') as f:
             for sno in obvious_stock_no:
-                f.write(sno+'\n')
+                f.write('s'+str(sno)+'\n')
+        with open(obvious_ans_dir + 'obvious_stock'+'.csv','a+',newline='') as f:
+            w = csv.writer(f)
+            w.writerows(obvious_stock)
+        with open(obvious_ans_dir + 'obvious_mem'+'.csv','a+',newline='') as f:
+            w  =csv.writer(f)
+            for tt in obvious_stock_no:
+                w.writerow(['s'+str(tt),i])
         count_sim = len(obvious_stock)
-        print("有{}%的stock是显著与主趋势一致的".format(count_sim / len(data_ud_i)))
+        print("有{}%的stock是显著与主趋势一致的".format(100*count_sim / len(data_ud_i)))
 
         #paint
         plt.figure()
@@ -488,7 +562,9 @@ def show_stocks(Data):
     plt.show()
 
 def run():
-    global mem_file,cent_file,mem_dict,predict_dir,predict_file,predict_idx_file,up_and_down_file
+    global mem_file,cent_file,mem_dict,\
+        predict_dir,predict_file,predict_idx_file,up_and_down_file,clustering_ans_dir
+    clustering_ans_dir = clustering_ans_dir.format(begin=train_begin_date,end=train_end_date)
     mem_file = mem_file.format(begin=train_begin_date,end=train_end_date)
     cent_file = cent_file.format(begin=train_begin_date,end=train_end_date)
     up_and_down_file = up_and_down_file.format(begin=train_begin_date,end=train_end_date)
@@ -501,27 +577,30 @@ def run():
     cluster_tag = {}
     with open(clustering_ans_dir+mem_file,'r') as f:
         lines = csv.reader(f)
-        for line in lines:
+        for ii,line in enumerate(lines):
             mem_dict[line[0][1:]] = int(line[1])
             mem_list.append(int(line[1]))
+            mem_index_dict[line[0]] = ii
             try:
                 a = cluster_tag[line[1]]
             except:
                 cluster_tag[line[1]] = 1
                 num_cluster += 1
+    print(compute_DBI_obv())
     #refine_ans()
     #numerical_compare()
     #draw_pic_on_predictData()
     #print(compute_DBI())
     #distance_compare()
-    #extract_shape_simmilar(30,0.05)
+    #extract_shape_simmilar(30,0.08)
+    '''
     dd = []
     with open('cluster_data/190601-190720/z_scored_190601-190720.csv','r') as f:
         stocks = csv.reader(f)
         for stock in stocks:
             dd.append([float(t) for t in stock])
     show_stocks(dd)
-
+    '''
 
 if __name__ == '__main__':
     run()

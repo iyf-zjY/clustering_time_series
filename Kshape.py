@@ -10,9 +10,9 @@ from numpy import conj
 #加上 0 1 -1 三分类的序列，centroid的计算方法仍然保持不变
 time_interval = '190101-190601'
 datadir = 'cluster_ans/for_train/'+time_interval+'/z_scored_'+time_interval+'.csv'
-data_ud_dir = 'cluster_ans/for_train/'+time_interval+'/up_and_down_'+time_interval+'.csv'
+#data_ud_dir = 'cluster_ans/for_train/'+time_interval+'/up_and_down_'+time_interval+'.csv'
 stock_idx_file = 'cluster_ans/for_train/'+time_interval+'/stock_idx_'+time_interval+'.txt'
-ans_dir = 'cluster_ans/train_ans/'
+ans_dir = 'cluster_ans/train_ans/' + time_interval + '/'
 #三分类序列的影响因子：不限制在0-1
 Alpha = 1
 def NCCc(w,m,x,y):  # y is aligned towards x
@@ -180,8 +180,8 @@ if __name__ == '__main__':
     mem,cent = Kshape(Data,num_cluster)
 
     #plot and write ans to files
-    mem_file = 'mem_'+time_interval+'_wm.csv'
-    cent_file = 'cent_'+time_interval+'_wm.csv'
+    mem_file = 'mem_'+time_interval+'.csv'
+    cent_file = 'cent_'+time_interval+'.csv'
 
     for tt in range(num_cluster):
         data_1 = []
