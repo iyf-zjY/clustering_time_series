@@ -3,10 +3,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 import math
 import csv
-import Kmeans_cDTW_DBA
+import Kmeans_cDTW_DBA_mul
 
 if __name__ == '__main__':
-    DBSCAN = cluster.DBSCAN(eps=3.0, metric=lambda x,y:Kmeans_cDTW_DBA.cDTW(x, y))
+    DBSCAN = cluster.DBSCAN(eps=3.0, metric=lambda x,y:Kmeans_cDTW_DBA_mul.cDTW(x, y))
     time_interval = '171225-180126'
     datadir = 'cluster_ans/for_train/z-scored_' + time_interval + '_wm.csv'
     Data = []

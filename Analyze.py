@@ -5,9 +5,9 @@ import math
 from xml.etree import ElementTree as ET
 import os
 import run_preprocess
-from Kmeans_cDTW_DBA import cDTW
+from Kmeans_cDTW_DBA_mul import cDTW
 from tqdm import tqdm
-from Kmeans_cDTW_DBA import DBA_iteration
+from Kmeans_cDTW_DBA_mul import DBA_iteration
 
 
 #根据聚类的结果，对未来的进行分类
@@ -472,7 +472,8 @@ def extract_shape_simmilar(obv_param,tol_param):
         Data_ud = list(csv.reader(f))
     Data_ud = np.array(Data_ud, dtype=float)
     Data_ud = np.array(Data_ud,dtype=int)
-    #对于每个类 统计一哈
+    remain_num_stock = 0
+
     for i in range(num_cluster):
         print("cluster: ",i)
         data_i = []
@@ -505,7 +506,7 @@ def extract_shape_simmilar(obv_param,tol_param):
             assert total_count == len(data_ud_i)
             up = 100*count_sum[j][1]/total_count
             down = 100*count_sum[j][0]/total_count
-            if math.fabs(up - down) > obv_param:
+            if math.fabs(up - down) > obv_param: # 1 up -1 down 0 no main direction
                 majority_direction.append(1 if up > down else -1)
                 count_remarkable += 1
             else:
@@ -522,6 +523,7 @@ def extract_shape_simmilar(obv_param,tol_param):
                     if stock_ud[day] != majority_direction[day]:
                         diff_day += 1
             if diff_day / count_sum.shape[0] <= tol_param:
+                remain_num_stock += 1
                 obvious_stock.append(data_i[seq])
                 obvious_stock_no.append(idx_i[seq])
         with open(obvious_ans_dir+'obvious_ans'+'.txt','a+',newline='') as f:
@@ -553,6 +555,7 @@ def extract_shape_simmilar(obv_param,tol_param):
             plt.savefig(obvious_ans_dir+'refine_ans_'+str(i)+'.png')
         plt.show()
         #os.system("pause")
+    print("保留下了：",100*remain_num_stock / len(Data),"%的stocks")
 
 def show_stocks(Data):
     idx = [s for s in range(1, len(Data[0]) + 1)]
@@ -586,13 +589,13 @@ def run():
             except:
                 cluster_tag[line[1]] = 1
                 num_cluster += 1
-    print(compute_DBI_obv())
+    #print(compute_DBI_obv())
     #refine_ans()
     #numerical_compare()
     #draw_pic_on_predictData()
     #print(compute_DBI())
     #distance_compare()
-    #extract_shape_simmilar(30,0.08)
+    extract_shape_simmilar(30,0.08)
     '''
     dd = []
     with open('cluster_data/190601-190720/z_scored_190601-190720.csv','r') as f:

@@ -2,12 +2,12 @@ import numpy as np
 import csv
 from matplotlib import pyplot as plt
 import math
+import os
 
 #距离度量：DTW
 #中心向量计算：迭代DBA
 #依然假设所有序列的长度都相等
 #multiData版本
-#mod版本：正在进行中，加入boost以及其他
 time_interval = '190211-190410'
 time_interval1 = '190212-190411'
 time_interval2 = '190213-190412'
@@ -30,7 +30,6 @@ def argpath_min(a,b,c):
             return 2
         else:
             return 1
-
 
 def cDTW(x,y):
     #we assume the two series is equal length
@@ -71,6 +70,7 @@ def DBA_iteration(avg,seqs):
         M.append([])
     cost_matrix = np.empty((len(avg),seqs.shape[1]))
     path_matrix = np.empty((len(avg),seqs.shape[1]))
+    all_dis = []
 
     for k in range(seqs.shape[0]):
         seq = seqs[k]
@@ -101,6 +101,7 @@ def DBA_iteration(avg,seqs):
 
         i = len(avg) - 1
         j = len(seq) - 1
+        all_dis.append(cost_matrix[i][j])
         while True:
             M[i].append(seq[j])
             if path_matrix[i][j] == 0:
@@ -116,7 +117,7 @@ def DBA_iteration(avg,seqs):
     ret_avg = []
     for i in range(len(avg)):
         ret_avg.append(np.array(M[i]).mean())
-    return ret_avg
+    return ret_avg,all_dis
 
 def DBA_chooseOne(avg,seqs):
     Dis = []
@@ -132,6 +133,12 @@ def kmeans(X,K): #X:window_size * m(stock_num)*n(days) (type:numpy)     k:number
     mem = [i*K for i in mem]
     mem = [int(math.floor(t)) for t in mem]
     cent = np.zeros((K,n),dtype = float)
+    #如果试试不以0初始化cent呢
+    for i in range(K):
+        for j,stock in enumerate(X[0]):
+            if mem[j] == i:
+                cent[i] = stock
+
     D = np.zeros((m, K), dtype=float)
     while iter<=100:
         print(iter)
@@ -147,7 +154,7 @@ def kmeans(X,K): #X:window_size * m(stock_num)*n(days) (type:numpy)     k:number
             #从每个stock的多个series中找一个距离最近滴
             seqs_ = [seqs[t][DBA_chooseOne(cent[i],seqs[t])] for t in range(len(seqs))]
             seqs_ = np.array(seqs_)
-            cent[i] = DBA_iteration(cent[i],seqs_)
+            cent[i], _ = DBA_iteration(cent[i],seqs_)
 
         for i in range(m):
             for j in range(K):
